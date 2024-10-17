@@ -21,4 +21,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "Air Quality Index"
 include(":app")
- 
+include(":core:aqi")
+include(":core:networking")
