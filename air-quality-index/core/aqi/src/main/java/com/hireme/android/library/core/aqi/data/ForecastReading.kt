@@ -5,11 +5,11 @@ package com.hireme.android.library.core.aqi.data
  */
 data class ForecastReading(
 
-    val day: String,
+    val day: String = "",
 
-    val max: Int,
+    val max: Int = 0,
 
-    val min: Int,
+    val min: Int = 0,
 
-    val average: Int
+    val average: Int = 0
 )

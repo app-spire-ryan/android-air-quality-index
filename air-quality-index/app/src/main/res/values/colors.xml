@@ -7,4 +7,12 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- AQI Range Values   -->
+    <color name="aqi_good">#009966</color>
+    <color name="aqi_moderate">#ffde33</color>
+    <color name="aqi_unhealthy_sensitive">#ff9933</color>
+    <color name="aqi_unhealthy">#cc0033</color>
+    <color name="aqi_very_unhealthy">#660099</color>
+    <color name="aqi_hazard">#7e0023</color>
 </resources>
