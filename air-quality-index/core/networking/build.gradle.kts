@@ -65,9 +65,8 @@ android {
 
 dependencies {
 
-    implementation(project(":core:aqi"))
-
-    implementation(libs.androidx.core.ktx)
+    api(project(":core:android"))
+    api(project(":core:aqi"))
 
     // Kotlinx
     implementation(libs.kotlinx.coroutines)

@@ -1,4 +1,4 @@
-package com.hireme.android.library.core.networking
+package com.hireme.android.library.core.android
 
 interface LogRepo {
 
