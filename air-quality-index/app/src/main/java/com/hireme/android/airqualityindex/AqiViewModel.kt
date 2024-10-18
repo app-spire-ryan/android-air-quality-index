@@ -4,21 +4,37 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.hireme.android.library.core.networking.AqiRepository
-import com.hireme.android.library.core.networking.LogRepository
+import com.hireme.android.library.core.android.LogRepository
 import com.hireme.android.library.core.aqi.data.AirQualityIndex
 import com.hireme.android.library.core.aqi.data.AirQualityIndexSearchResult
-import com.hireme.android.library.core.networking.extensions.toException
+import com.hireme.android.library.core.location.LocationRepo
+import com.hireme.android.library.core.location.LocationRepository
+import com.hireme.android.library.core.android.extensions.toException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-class AqiViewModel(app: Application): AndroidViewModel(app) {
+class AqiViewModel(app: Application, private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO): AndroidViewModel(app) {
 
     private val repo: AqiRepository by lazy { AqiRepository() }
+    private val locationRepo: LocationRepo by lazy { LocationRepository() }
 
-    private val _coordinates: MutableLiveData<Pair<Long,Long>> = MutableLiveData()
-    val coordinates: LiveData<Pair<Long,Long>> = _coordinates
+    private val _locationGranted: MutableLiveData<Boolean> = MutableLiveData()
+    val locationGranted: LiveData<Boolean> = _locationGranted
+
+    private val _showPermRationale: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    val showPermRationale: StateFlow<Boolean> = _showPermRationale
+
+    private val _permRationaleDismissed: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    val permRationaleDismissed: StateFlow<Boolean> = _permRationaleDismissed
 
     private val _selectedCity: MutableLiveData<String> = MutableLiveData()
     val selectedCity: LiveData<String> = _selectedCity
@@ -32,6 +48,16 @@ class AqiViewModel(app: Application): AndroidViewModel(app) {
     companion object {
 
         private const val TAG = "AqiViewModel"
+
+        fun factory(app: Application) = object : ViewModelProvider.AndroidViewModelFactory(app) {
+
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+
+                if (modelClass.isAssignableFrom(AqiViewModel::class.java)) {
+                    return AqiViewModel(app) as T
+                } else throw IllegalArgumentException("Unknown ViewModel class")
+            }
+        }
     }
 
     init {
@@ -43,7 +69,62 @@ class AqiViewModel(app: Application): AndroidViewModel(app) {
         LogRepository.log(message, TAG)
     }
 
-   private fun getAqi(lat: Double, long: Double) {
+    /**
+     * Should be called when the location permission has been granted.
+     *
+     * @param didGrant Whether or not the permission has been granted.
+     */
+    fun onLocationGranted(didGrant: Boolean) {
+
+        viewModelScope.launch {
+
+            log("onLocationGranted() didGrant: $didGrant")
+
+            // Update grant status
+            _locationGranted.value = didGrant
+
+            withContext(ioDispatcher) {
+
+                if (didGrant) {
+
+                    // Get the location
+                    locationRepo.getLocation(getApplication()).catch { e ->
+
+                        LogRepository.logError("onLocationGranted() message: ${e.message}", TAG, e.toException())
+
+                    }.collect { location ->
+
+                        log("onLocationGranted() location: ${location?.latitude} | longitude: ${location?.longitude}")
+                        location?.let {
+
+                            // Read AQI based on location
+                            getAqi(it.latitude, it.longitude)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Should be called when the permission rationale needs to be shown.
+     */
+    fun onShowLocationRationale() {
+
+        log("onShowLocationRationale()")
+        _showPermRationale.value = true
+    }
+
+    /**
+     * Should be called when the permission rationale needs to be dismissed.
+     */
+    fun onLocationRationaleDismissed() {
+
+        log("onLocationRationaleDismissed()")
+        _showPermRationale.value = false
+    }
+
+    private fun getAqi(lat: Double, long: Double) {
 
         viewModelScope.launch {
 

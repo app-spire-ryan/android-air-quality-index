@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.hireme.android.library.core.aqi"
+    namespace = "com.hireme.android.library.core.location"
     compileSdk = 34
 
     defaultConfig {
@@ -15,9 +15,6 @@ android {
     }
 
     buildTypes {
-        debug {
-
-        }
         release {
 
         }
@@ -32,6 +29,11 @@ android {
 }
 
 dependencies {
+
+    api(project(":core:android"))
+
+    // Location
+    implementation(libs.play.services.location)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

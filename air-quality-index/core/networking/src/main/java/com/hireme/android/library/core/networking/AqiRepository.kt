@@ -1,5 +1,7 @@
 package com.hireme.android.library.core.networking
 
+import com.hireme.android.library.core.android.LogRepo
+import com.hireme.android.library.core.android.LogRepository
 import com.hireme.android.library.core.networking.api.data.extensions.toAirQualityIndex
 import com.hireme.android.library.core.networking.api.data.extensions.toAirQualityIndexSearchResult
 import com.hireme.android.library.core.aqi.data.AirQualityIndex
@@ -9,7 +11,7 @@ import com.hireme.android.library.core.networking.data.IoError
 import com.hireme.android.library.core.networking.data.IoResponse
 import com.hireme.android.library.core.networking.extensions.isStatusError
 import com.hireme.android.library.core.networking.extensions.isStatusOk
-import com.hireme.android.library.core.networking.extensions.toException
+import com.hireme.android.library.core.android.extensions.toException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow

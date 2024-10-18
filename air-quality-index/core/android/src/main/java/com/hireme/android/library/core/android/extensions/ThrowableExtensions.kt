@@ -1,4 +1,4 @@
-package com.hireme.android.library.core.networking.extensions
+package com.hireme.android.library.core.android.extensions
 
 /**
  * Converts a [Throwable] to an [Exception].

@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.hireme.android.library.core.aqi"
+    namespace = "com.hireme.android.library.core.android"
     compileSdk = 34
 
     defaultConfig {
@@ -15,9 +15,6 @@ android {
     }
 
     buildTypes {
-        debug {
-
-        }
         release {
 
         }
@@ -32,6 +29,8 @@ android {
 }
 
 dependencies {
+
+    api(libs.androidx.core.ktx)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -54,10 +54,9 @@ android {
 dependencies {
 
     // Project Deps
-    implementation(project(":core:aqi"))
     implementation(project(":core:networking"))
+    implementation(project(":core:location"))
 
-    implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
 
     implementation(libs.androidx.activity.compose)
@@ -67,6 +66,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.compose.accompanist)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
