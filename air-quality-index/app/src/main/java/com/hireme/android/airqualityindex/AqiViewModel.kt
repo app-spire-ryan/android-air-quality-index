@@ -14,6 +14,7 @@ import com.hireme.android.library.core.aqi.data.AirQualityIndexSearchResult
 import com.hireme.android.library.core.location.LocationRepo
 import com.hireme.android.library.core.location.LocationRepository
 import com.hireme.android.library.core.android.extensions.toException
+import com.hireme.android.library.core.aqi.data.ForecastReading
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,20 +31,45 @@ class AqiViewModel(app: Application, private val ioDispatcher: CoroutineDispatch
     private val _locationGranted: MutableLiveData<Boolean> = MutableLiveData()
     val locationGranted: LiveData<Boolean> = _locationGranted
 
+    private val _coordinates: MutableStateFlow<Pair<Double, Double>> = MutableStateFlow(0.0 to 0.0)
+    val coordinates: StateFlow<Pair<Double, Double>> = _coordinates
+
     private val _showPermRationale: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val showPermRationale: StateFlow<Boolean> = _showPermRationale
+
+    private val _dismissedRationale: MutableStateFlow<Boolean?> = MutableStateFlow(null)
+    val dismissedRationale: StateFlow<Boolean?> = _dismissedRationale
 
     private val _permRationaleDismissed: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val permRationaleDismissed: StateFlow<Boolean> = _permRationaleDismissed
 
-    private val _selectedCity: MutableLiveData<String> = MutableLiveData()
-    val selectedCity: LiveData<String> = _selectedCity
+    private val _selectedCityName: MutableStateFlow<String> = MutableStateFlow("NA")
+    val selectedCityName: StateFlow<String> = _selectedCityName
 
-    private val _selectedStation: MutableLiveData<String> = MutableLiveData()
-    val selectedStation: LiveData<String> = _selectedStation
+    private val _selectedCityLocation: MutableStateFlow<String> = MutableStateFlow("NA")
+    val selectedCityLocation: StateFlow<String> = _selectedCityLocation
+
+    private val _selectedStation: MutableStateFlow<String> = MutableStateFlow("NA")
+    val selectedStation: StateFlow<String> = _selectedStation
+
+    private val _currentAqi: MutableStateFlow<String> = MutableStateFlow("0")
+    val currentAqi: StateFlow<String> = _currentAqi
+
+    private val _forecastBefore: MutableStateFlow<ForecastReading?> = MutableStateFlow(ForecastReading())
+    val forecastBefore: StateFlow<ForecastReading?> = _forecastBefore
+
+    private val _forecastToday: MutableStateFlow<ForecastReading?> = MutableStateFlow(ForecastReading())
+    val forecastToday: StateFlow<ForecastReading?> = _forecastToday
+
+    private val _forecastTomorrow: MutableStateFlow<ForecastReading?> = MutableStateFlow(ForecastReading())
+    val forecastTomorrow: StateFlow<ForecastReading?> = _forecastTomorrow
+
 
     private val _airQualityIndex: MutableLiveData<AirQualityIndex> = MutableLiveData()
     val airQualityIndex: LiveData<AirQualityIndex> = _airQualityIndex
+
+    private val _searchError: MutableStateFlow<String> = MutableStateFlow("")
+    val searchError: StateFlow<String> = _searchError
 
     companion object {
 
@@ -69,6 +95,11 @@ class AqiViewModel(app: Application, private val ioDispatcher: CoroutineDispatch
         LogRepository.log(message, TAG)
     }
 
+    private fun updateCoordinates(lat: Double, long: Double) {
+
+        _coordinates.value = lat to long
+    }
+
     /**
      * Should be called when the location permission has been granted.
      *
@@ -79,6 +110,9 @@ class AqiViewModel(app: Application, private val ioDispatcher: CoroutineDispatch
         viewModelScope.launch {
 
             log("onLocationGranted() didGrant: $didGrant")
+
+            // If location is already granted no need to re-launch location fetching
+            if (locationGranted.value == true) return@launch
 
             // Update grant status
             _locationGranted.value = didGrant
@@ -96,6 +130,9 @@ class AqiViewModel(app: Application, private val ioDispatcher: CoroutineDispatch
 
                         log("onLocationGranted() location: ${location?.latitude} | longitude: ${location?.longitude}")
                         location?.let {
+
+                            // Update the UI with the coordinates
+                            updateCoordinates(it.latitude, it.longitude)
 
                             // Read AQI based on location
                             getAqi(it.latitude, it.longitude)
@@ -122,6 +159,7 @@ class AqiViewModel(app: Application, private val ioDispatcher: CoroutineDispatch
 
         log("onLocationRationaleDismissed()")
         _showPermRationale.value = false
+        _dismissedRationale.value = true
     }
 
     private fun getAqi(lat: Double, long: Double) {
@@ -144,7 +182,17 @@ class AqiViewModel(app: Application, private val ioDispatcher: CoroutineDispatch
 
                         val airQualityIndex = ioResponse.result.second
                         log("getAqi() airQualityIndex: $airQualityIndex")
-                        // TODO: Update UI
+
+                        // Update the coordinates
+                        updateCoordinates(airQualityIndex?.latitude ?: 0.0, airQualityIndex?.longitude ?: 0.0)
+
+                        // Update UI
+                        _selectedCityName.value = airQualityIndex?.name ?: "NA"
+                        _selectedStation.value = airQualityIndex?.stationId.toString()
+                        _currentAqi.value = airQualityIndex?.aqi.toString()
+                        _forecastBefore.value = airQualityIndex?.forecastOzone?.first()
+                        _forecastToday.value = airQualityIndex?.forecastOzone?.getOrNull(1)
+                        _forecastTomorrow.value = airQualityIndex?.forecastOzone?.getOrNull(2)
 
                     } else {// Handle error
 
@@ -161,6 +209,9 @@ class AqiViewModel(app: Application, private val ioDispatcher: CoroutineDispatch
 
             log("onSearch() keyword: $keyword")
 
+            // Clear search error
+            _searchError.value = ""
+
             repo.searchKeyword(keyword)
                 .catch { e ->
 
@@ -175,18 +226,20 @@ class AqiViewModel(app: Application, private val ioDispatcher: CoroutineDispatch
                         log("onSearch() first result: ${searchResults?.firstOrNull()}")
 
                         // Take first entry
-                        val first: AirQualityIndexSearchResult = searchResults?.firstOrNull()
-                            ?: throw IllegalStateException("TODO: No search results returned.") // TODO: Update UI with empty search
+                        val first: AirQualityIndexSearchResult? = searchResults?.firstOrNull()
 
-                        // Now that we have the search result, fetch the AQI data for it
-                        getAqi(first.stationLatitude, first.stationLongitude)
+                        if (first == null) _searchError.value = "No search results were returned for $keyword"
 
-                        // TODO: Update UI
+                        first?.let {
+
+                            // Now that we have the search result, fetch the AQI data for it
+                            getAqi(it.stationLatitude, it.stationLongitude)
+                        }
 
                     } else {// Handle error
 
                         LogRepository.logError("onSearch() error: ${ioResponse.error}", TAG)
-                        // TODO: Update UI
+                        _searchError.value = "No search results were returned for $keyword"
                     }
                 }
         }
